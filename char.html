@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Character JSON Viewer</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: #f4f4f4;
+    }
+
+    header {
+        padding: 10px;
+        background: #2c3e50;
+        color: white;
+    }
+
+    .controls {
+        padding: 10px;
+        background: #ecf0f1;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    textarea {
+        width: 100%;
+        height: 120px;
+        margin-top: 5px;
+        font-family: monospace;
+    }
+
+    .container {
+        display: flex;
+        height: calc(100vh - 230px);
+    }
+
+    .sidebar {
+        width: 300px;
+        background: white;
+        border-right: 1px solid #ccc;
+        overflow-y: auto;
+    }
+
+    .sidebar-item {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+    }
+
+    .sidebar-item:hover {
+        background: #f0f0f0;
+    }
+
+    .sidebar-item.active {
+        background: #dfe6e9;
+        font-weight: bold;
+    }
+
+    .details {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+        background: white;
+    }
+
+    h2 {
+        margin-top: 0;
+    }
+
+    .section {
+        margin-bottom: 20px;
+    }
+
+    .label {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .value {
+        white-space: pre-wrap;
+        background: #f9f9f9;
+        padding: 10px;
+        border-radius: 5px;
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Character JSON Viewer</h1>
+</header>
+
+<div class="controls">
+    <input type="file" id="fileInput">
+    <button onclick="loadFromPaste()">Load From Paste</button>
+</div>
+
+<div style="padding:10px;">
+    <label>Paste JSON Here:</label>
+    <textarea id="jsonPaste"></textarea>
+</div>
+
+<div class="container">
+    <div class="sidebar" id="characterList"></div>
+    <div class="details" id="characterDetails">
+        <h2>Select a character</h2>
+    </div>
+</div>
+
+<script>
+let data = [];
+
+// ==========================
+// FILE LOAD
+// ==========================
+document.getElementById("fileInput").addEventListener("change", function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const json = JSON.parse(e.target.result);
+            processData(json);
+        } catch (err) {
+            alert("Invalid JSON file.");
+        }
+    };
+    reader.readAsText(file);
+});
+
+// ==========================
+// PASTE LOAD
+// ==========================
+function loadFromPaste() {
+    const text = document.getElementById("jsonPaste").value.trim();
+    if (!text) {
+        alert("Paste area is empty.");
+        return;
+    }
+
+    try {
+        const json = JSON.parse(text);
+        processData(json);
+    } catch (err) {
+        alert("Invalid JSON.");
+    }
+}
+
+// ==========================
+// PROCESS DATA
+// ==========================
+function processData(json) {
+    if (!Array.isArray(json)) {
+        alert("JSON must be an array.");
+        return;
+    }
+
+    // Sort by created date
+    json.forEach(item => {
+        item.parsedCreated = new Date(item.created);
+    });
+
+    json.sort((a, b) => a.parsedCreated - b.parsedCreated);
+
+    data = json;
+    renderList();
+}
+
+// ==========================
+// RENDER LIST
+// ==========================
+function renderList() {
+    const list = document.getElementById("characterList");
+    list.innerHTML = "";
+
+    data.forEach((item, index) => {
+        const div = document.createElement("div");
+        div.className = "sidebar-item";
+        div.textContent = item.name || "Unnamed";
+        div.onclick = () => selectCharacter(index);
+        list.appendChild(div);
+    });
+}
+
+// ==========================
+// SELECT CHARACTER
+// ==========================
+function selectCharacter(index) {
+    const character = data[index];
+
+    document.querySelectorAll(".sidebar-item").forEach(el => el.classList.remove("active"));
+    document.querySelectorAll(".sidebar-item")[index].classList.add("active");
+
+    const details = document.getElementById("characterDetails");
+
+    details.innerHTML = `
+        <h2>${character.name || "Unnamed"}</h2>
+
+        <div class="section">
+            <div class="label">Title</div>
+            <div class="value">${character.title || "N/A"}</div>
+        </div>
+
+        <div class="section">
+            <div class="label">Created</div>
+            <div class="value">${character.created || "N/A"}</div>
+        </div>
+
+        <div class="section">
+            <div class="label">Updated</div>
+            <div class="value">${character.updated || "N/A"}</div>
+        </div>
+
+        <div class="section">
+            <div class="label">Description</div>
+            <div class="value">${character.description || ""}</div>
+        </div>
+
+        <div class="section">
+            <div class="label">Greeting</div>
+            <div class="value">${character.greeting || ""}</div>
+        </div>
+
+        <div class="section">
+            <div class="label">Definition</div>
+            <div class="value">${character.definition || ""}</div>
+        </div>
+    `;
+}
+</script>
+
+</body>
+</html>
