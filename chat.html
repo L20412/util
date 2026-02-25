@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Chat JSON Viewer</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: #f4f6f8;
+    }
+
+    header {
+        background: #2c3e50;
+        color: white;
+        padding: 12px;
+    }
+
+    .controls {
+        padding: 10px;
+        background: #ecf0f1;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    textarea {
+        width: 100%;
+        height: 120px;
+        margin-top: 5px;
+        font-family: monospace;
+    }
+
+    .container {
+        padding: 10px;
+    }
+
+    select {
+        padding: 5px;
+    }
+
+    .chat-area {
+        margin-top: 10px;
+        background: white;
+        padding: 15px;
+        height: calc(100vh - 330px);
+        overflow-y: auto;
+        border-radius: 6px;
+    }
+
+    .message {
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        background: #fafafa;
+    }
+
+    .meta {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 5px;
+    }
+
+    .content {
+        white-space: pre-wrap;
+    }
+
+    .image-path {
+        margin-top: 5px;
+        font-size: 12px;
+        color: #2980b9;
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Chat JSON Viewer</h1>
+</header>
+
+<div class="controls">
+    <input type="file" id="fileInput">
+    <button onclick="loadFromPaste()">Load From Paste</button>
+
+    <label>Chat ID:</label>
+    <select id="chatSelector" onchange="renderChat()"></select>
+</div>
+
+<div style="padding:10px;">
+    <label>Paste JSON Here:</label>
+    <textarea id="jsonPaste"></textarea>
+</div>
+
+<div class="container">
+    <div class="chat-area" id="chatArea">
+        Select a chat to view messages.
+    </div>
+</div>
+
+<script>
+let data = [];
+let groupedChats = {};
+
+// ==========================
+// FILE LOAD
+// ==========================
+document.getElementById("fileInput").addEventListener("change", function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const json = JSON.parse(e.target.result);
+            processData(json);
+        } catch (err) {
+            alert("Invalid JSON file.");
+        }
+    };
+    reader.readAsText(file);
+});
+
+// ==========================
+// PASTE LOAD
+// ==========================
+function loadFromPaste() {
+    const text = document.getElementById("jsonPaste").value.trim();
+    if (!text) {
+        alert("Paste area is empty.");
+        return;
+    }
+
+    try {
+        const json = JSON.parse(text);
+        processData(json);
+    } catch (err) {
+        alert("Invalid JSON.");
+    }
+}
+
+// ==========================
+// PROCESS DATA
+// ==========================
+function processData(json) {
+    if (!Array.isArray(json)) {
+        alert("JSON must be an array.");
+        return;
+    }
+
+    // Parse and sort by create_time
+    json.forEach(item => {
+        item.parsedTime = new Date(item.create_time);
+    });
+
+    json.sort((a, b) => a.parsedTime - b.parsedTime);
+
+    data = json;
+    groupChats();
+    populateChatSelector();
+}
+
+// ==========================
+// GROUP BY CHAT ID
+// ==========================
+function groupChats() {
+    groupedChats = {};
+
+    data.forEach(item => {
+        if (!groupedChats[item.chat_id]) {
+            groupedChats[item.chat_id] = [];
+        }
+        groupedChats[item.chat_id].push(item);
+    });
+}
+
+// ==========================
+// POPULATE DROPDOWN
+// ==========================
+function populateChatSelector() {
+    const selector = document.getElementById("chatSelector");
+    selector.innerHTML = "";
+
+    Object.keys(groupedChats).forEach(chatId => {
+        const option = document.createElement("option");
+        option.value = chatId;
+        option.textContent = chatId;
+        selector.appendChild(option);
+    });
+
+    if (selector.options.length > 0) {
+        selector.selectedIndex = 0;
+        renderChat();
+    }
+}
+
+// ==========================
+// RENDER CHAT
+// ==========================
+function renderChat() {
+    const selector = document.getElementById("chatSelector");
+    const chatId = selector.value;
+    const chatArea = document.getElementById("chatArea");
+
+    if (!chatId || !groupedChats[chatId]) {
+        chatArea.innerHTML = "No chat selected.";
+        return;
+    }
+
+    chatArea.innerHTML = "";
+
+    groupedChats[chatId].forEach(msg => {
+        const div = document.createElement("div");
+        div.className = "message";
+
+        div.innerHTML = `
+            <div class="meta">
+                <strong>Time:</strong> ${msg.create_time} <br>
+                <strong>Candidate ID:</strong> ${msg.candidate_id}
+            </div>
+            <div class="content">${msg.raw_content || ""}</div>
+            ${msg.tti_image_rel_path ? 
+                `<div class="image-path">Image: ${msg.tti_image_rel_path}</div>` 
+                : ""
+            }
+        `;
+
+        chatArea.appendChild(div);
+    });
+}
+</script>
+
+</body>
+</html>
