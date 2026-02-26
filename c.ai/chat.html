@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Chat JSON Viewer</title>
+<title>Chat Viewer</title>
 <style>
     body {
         font-family: Arial, sans-serif;
@@ -20,31 +20,27 @@
         padding: 10px;
         background: #ecf0f1;
         display: flex;
+        flex-wrap: wrap;
         gap: 10px;
         align-items: center;
-        flex-wrap: wrap;
     }
 
     textarea {
         width: 100%;
-        height: 120px;
+        height: 100px;
         margin-top: 5px;
         font-family: monospace;
     }
 
-    .container {
-        padding: 10px;
-    }
-
-    select {
+    input, select {
         padding: 5px;
     }
 
     .chat-area {
-        margin-top: 10px;
+        margin: 10px;
         background: white;
         padding: 15px;
-        height: calc(100vh - 330px);
+        height: calc(100vh - 380px);
         overflow-y: auto;
         border-radius: 6px;
     }
@@ -63,14 +59,8 @@
         margin-bottom: 5px;
     }
 
-    .content {
-        white-space: pre-wrap;
-    }
-
-    .image-path {
-        margin-top: 5px;
-        font-size: 12px;
-        color: #2980b9;
+    .highlight {
+        background: yellow;
     }
 </style>
 </head>
@@ -86,6 +76,10 @@
 
     <label>Chat ID:</label>
     <select id="chatSelector" onchange="renderChat()"></select>
+
+    <label>Search:</label>
+    <input type="text" id="searchInput" placeholder="Keyword, chat_id, or candidate_id">
+    <button onclick="renderChat()">Search</button>
 </div>
 
 <div style="padding:10px;">
@@ -93,10 +87,8 @@
     <textarea id="jsonPaste"></textarea>
 </div>
 
-<div class="container">
-    <div class="chat-area" id="chatArea">
-        Select a chat to view messages.
-    </div>
+<div class="chat-area" id="chatArea">
+    Load JSON to begin.
 </div>
 
 <script>
@@ -149,7 +141,6 @@ function processData(json) {
         return;
     }
 
-    // Parse and sort by create_time
     json.forEach(item => {
         item.parsedTime = new Date(item.create_time);
     });
@@ -166,7 +157,6 @@ function processData(json) {
 // ==========================
 function groupChats() {
     groupedChats = {};
-
     data.forEach(item => {
         if (!groupedChats[item.chat_id]) {
             groupedChats[item.chat_id] = [];
@@ -196,32 +186,64 @@ function populateChatSelector() {
 }
 
 // ==========================
-// RENDER CHAT
+// SEARCH + RENDER
 // ==========================
 function renderChat() {
     const selector = document.getElementById("chatSelector");
+    const searchValue = document.getElementById("searchInput").value.trim().toLowerCase();
     const chatId = selector.value;
     const chatArea = document.getElementById("chatArea");
 
-    if (!chatId || !groupedChats[chatId]) {
-        chatArea.innerHTML = "No chat selected.";
+    chatArea.innerHTML = "";
+
+    if (!data.length) {
+        chatArea.innerHTML = "No data loaded.";
         return;
     }
 
-    chatArea.innerHTML = "";
+    let messages = [];
 
-    groupedChats[chatId].forEach(msg => {
+    if (chatId && groupedChats[chatId]) {
+        messages = groupedChats[chatId];
+    } else {
+        messages = data;
+    }
+
+    if (searchValue) {
+        messages = messages.filter(msg =>
+            (msg.raw_content && msg.raw_content.toLowerCase().includes(searchValue)) ||
+            (msg.chat_id && msg.chat_id.toLowerCase().includes(searchValue)) ||
+            (msg.candidate_id && msg.candidate_id.toLowerCase().includes(searchValue))
+        );
+    }
+
+    if (!messages.length) {
+        chatArea.innerHTML = "No matching messages.";
+        return;
+    }
+
+    messages.forEach(msg => {
         const div = document.createElement("div");
         div.className = "message";
 
+        let content = msg.raw_content || "";
+
+        if (searchValue) {
+            const regex = new RegExp(searchValue, "gi");
+            content = content.replace(regex, match =>
+                `<span class="highlight">${match}</span>`
+            );
+        }
+
         div.innerHTML = `
             <div class="meta">
-                <strong>Time:</strong> ${msg.create_time} <br>
+                <strong>Time:</strong> ${msg.create_time}<br>
+                <strong>Chat ID:</strong> ${msg.chat_id}<br>
                 <strong>Candidate ID:</strong> ${msg.candidate_id}
             </div>
-            <div class="content">${msg.raw_content || ""}</div>
-            ${msg.tti_image_rel_path ? 
-                `<div class="image-path">Image: ${msg.tti_image_rel_path}</div>` 
+            <div>${content}</div>
+            ${msg.tti_image_rel_path ?
+                `<div style="color:#2980b9;font-size:12px;">Image: ${msg.tti_image_rel_path}</div>`
                 : ""
             }
         `;
