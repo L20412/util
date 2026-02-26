@@ -1,23 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-  @font-face {
-   font-family: 'MyCustomFont';
-   src: url('Ubuntu-Regular.ttf') format('TrueType')
+
+  <style>
+    @font-face {
+      font-family: 'MyCustomFont';
+      src: url('Ubuntu-Regular.ttf') format('TrueType');
     }
-body {
-   font-family: 'MyCustomFont', sans-serif;
-}
-  body{
-    font-family: Ubuntu, Sans-serif
-  }
-</style>
+
+    body {
+      font-family: 'MyCustomFont', Ubuntu, sans-serif;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .btn {
+      display: inline-block;
+      width: 280px;              /* consistent width */
+      text-align: center;
+      padding: 13px 20px;
+      background: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      transition: background 0.2s ease;
+      margin-bottom: 0px;
+    }
+
+    .btn:hover {
+      background: #0056b3;
+    }
+
+    .btn:active {
+      background: #003f82;
+    }
+  </style>
 </head>
 
 <body>
-<h1>Welcome to L20412 utils</h1>
-<h3>For character.ai exports</h3>
-<p><a href="c.ai/char.html" target="_blank">Character and Persona viewer</a></p>
-<p><a href="c.ai/chat.html" target="_blank">Message log viewer</a></p>
+  <h1>Welcome to L20412 utils</h1>
+  <h3>For character.ai exports</h3>
+  <p><a href="c.ai/char.html" target="_blank" class="btn">Character and Persona viewer</a></p>
+  <p><a href="c.ai/chat.html" target="_blank" class="btn">Message log viewer</a></p>
 </body>
-
+</html>
