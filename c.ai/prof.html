@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>character.ai user JSON Viewer</title>
+<style>
+    @font-face {
+       font-family: 'TitleFont';
+       src: url('Lexend-SemiBold.ttf') format('TrueType')
+    }
+    header{
+        font-family: 'TitleFont'
+    }
+    @font-face {
+       font-family: 'MyCustomFont';
+       src: url('Onest-Medium.ttf') format('TrueType')
+    }
+
+    body {
+        font-family: 'MyCustomFont', Arial, sans-serif;
+        margin: 0;
+        background: #f4f6f8;
+    }
+
+    header {
+        background: #2c3e50;
+        color: white;
+        padding: 12px;
+    }
+
+    .controls {
+        padding: 10px;
+        background: #ecf0f1;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    textarea {
+        width: 100%;
+        height: 120px;
+        margin-top: 5px;
+        font-family: monospace;
+    }
+
+    .viewer {
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+    }
+
+    .card {
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        width: 500px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .field {
+        margin-bottom: 15px;
+    }
+
+    .label {
+        font-weight: bold;
+        color: #555;
+    }
+
+    .value {
+        margin-top: 3px;
+        padding: 8px;
+        background: #f9f9f9;
+        border-radius: 6px;
+    }
+
+    .active-true {
+        color: green;
+        font-weight: bold;
+    }
+
+    .active-false {
+        color: red;
+        font-weight: bold;
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>User JSON Viewer</h1>
+</header>
+
+<div class="controls">
+    <input type="file" id="fileInput">
+    <button onclick="loadFromPaste()">Load From Paste</button>
+</div>
+
+<div style="padding:10px;">
+    <label>Paste JSON Here:</label>
+    <textarea id="jsonPaste"></textarea>
+</div>
+
+<div class="viewer">
+    <div class="card" id="userCard">
+        Load JSON to display user information.
+    </div>
+</div>
+
+<script>
+let userData = null;
+
+// ==========================
+// FILE LOAD
+// ==========================
+document.getElementById("fileInput").addEventListener("change", function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const json = JSON.parse(e.target.result);
+            processData(json);
+        } catch (err) {
+            alert("Invalid JSON file.");
+        }
+    };
+    reader.readAsText(file);
+});
+
+// ==========================
+// PASTE LOAD
+// ==========================
+function loadFromPaste() {
+    const text = document.getElementById("jsonPaste").value.trim();
+    if (!text) return alert("Paste area is empty.");
+
+    try {
+        const json = JSON.parse(text);
+        processData(json);
+    } catch (err) {
+        alert("Invalid JSON.");
+    }
+}
+
+// ==========================
+// PROCESS DATA
+// ==========================
+function processData(json) {
+    if (typeof json !== "object" || Array.isArray(json)) {
+        return alert("JSON must be a single object.");
+    }
+
+    userData = json;
+    renderUser();
+}
+
+// ==========================
+// RENDER USER
+// ==========================
+function renderUser() {
+    const card = document.getElementById("userCard");
+
+    const joinedDate = userData.date_joined
+        ? new Date(userData.date_joined).toLocaleString()
+        : "N/A";
+
+    const isActive = userData.is_active === true;
+
+    card.innerHTML = `
+        <div class="field">
+            <div class="label">Username</div>
+            <div class="value">${userData.username || "N/A"}</div>
+        </div>
+
+        <div class="field">
+            <div class="label">First Name</div>
+            <div class="value">${userData.first_name || "N/A"}</div>
+        </div>
+
+        <div class="field">
+            <div class="label">Email</div>
+            <div class="value">${userData.email || "N/A"}</div>
+        </div>
+
+        <div class="field">
+            <div class="label">Active Status</div>
+            <div class="value ${isActive ? "active-true" : "active-false"}">
+                ${isActive ? "Active ✅" : "Inactive ❌"}
+            </div>
+        </div>
+
+        <div class="field">
+            <div class="label">Date Joined</div>
+            <div class="value">${joinedDate}</div>
+        </div>
+    `;
+}
+</script>
+
+</body>
+</html>

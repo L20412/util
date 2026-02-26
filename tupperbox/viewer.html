@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tupperbox Export Viewer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+:root {
+  --bg: #111;
+  --panel: #1a1a1a;
+  --panel2: #222;
+  --accent: #4cafef;
+  --text: #eee;
+  --muted: #aaa;
+  --scroll-track: #1a1a1a;
+  --scroll-thumb: #444;
+  --scroll-thumb-hover: #666;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Modern Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+
+header {
+  padding: 12px;
+  background: #000;
+  text-align: center;
+  font-weight: bold;
+}
+
+.controls {
+  padding: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: var(--panel);
+}
+
+input, select, button {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: none;
+}
+
+button {
+  background: var(--accent);
+  cursor: pointer;
+  color: white;
+}
+
+textarea {
+  width: 100%;
+  height: 100px;
+  background: var(--panel2);
+  color: var(--text);
+  border: none;
+  padding: 8px;
+}
+
+#app {
+  display: flex;
+  height: calc(100vh - 170px);
+}
+
+/* Desktop */
+#sidebar {
+  width: 280px;
+  background: var(--panel);
+  overflow-y: auto;
+  border-right: 1px solid #333;
+}
+
+#content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.group-header {
+  padding: 8px;
+  background: #181818;
+  cursor: pointer;
+  font-weight: bold;
+  border-bottom: 1px solid #333;
+}
+
+.group-list {
+  display: none;
+}
+
+.character-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #222;
+  align-items: center;
+}
+
+.character-item:hover {
+  background: #2a2a2a;
+}
+
+.character-item.active {
+  background: #333;
+}
+
+.character-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.character-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.character-name {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.character-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.character-info img {
+  width: 120px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+
+  #app {
+    flex-direction: column;
+  }
+
+  #sidebar {
+    width: 100%;
+    height: 100%;
+    border-right: none;
+  }
+
+  #content {
+    display: none;
+    padding: 15px;
+  }
+
+  #content.mobile-active {
+    display: block;
+  }
+
+  #sidebar.mobile-hidden {
+    display: none;
+  }
+
+  .back-btn {
+    display: inline-block;
+    margin-bottom: 15px;
+    background: var(--accent);
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+}
+</style>
+</head>
+<body>
+
+<header>Tupperbox Export Viewer</header>
+
+<div class="controls">
+  <input type="file" id="fileInput" accept=".json">
+  <select id="sortSelect">
+    <option value="name">Sort by Name</option>
+    <option value="posts">Sort by Posts</option>
+    <option value="last_used">Sort by Last Used</option>
+  </select>
+  <input type="text" id="searchInput" placeholder="Search...">
+</div>
+
+<textarea id="jsonInput" placeholder="Paste JSON here..."></textarea>
+<button onclick="loadJSON()">Load JSON</button>
+
+<div id="app">
+  <div id="sidebar"></div>
+  <div id="content"></div>
+</div>
+
+<script>
+let data = null;
+let selectedId = null;
+const DEFAULT_AVATAR = "https://static.vecteezy.com/system/resources/previews/006/892/625/non_2x/discord-logo-icon-editorial-free-vector.jpg";
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    document.getElementById('jsonInput').value = evt.target.result;
+    loadJSON();
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById('searchInput').addEventListener('input', render);
+document.getElementById('sortSelect').addEventListener('change', render);
+
+function loadJSON() {
+  try {
+    data = JSON.parse(document.getElementById('jsonInput').value);
+    render();
+  } catch {
+    alert("Invalid JSON");
+  }
+}
+
+function render() {
+  if (!data) return;
+
+  const sidebar = document.getElementById('sidebar');
+  sidebar.innerHTML = "";
+
+  let tuppers = [...data.tuppers];
+
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  if (search) {
+    tuppers = tuppers.filter(t =>
+      t.name?.toLowerCase().includes(search) ||
+      t.nick?.toLowerCase().includes(search)
+    );
+  }
+
+  const sort = document.getElementById('sortSelect').value;
+  tuppers.sort((a,b)=>{
+    if (sort === "posts") return (b.posts||0)-(a.posts||0);
+    if (sort === "last_used") return new Date(b.last_used||0)-new Date(a.last_used||0);
+    return a.name.localeCompare(b.name);
+  });
+
+  const groups = {};
+  tuppers.forEach(t=>{
+    const gid = t.group_id || "ungrouped";
+    if(!groups[gid]) groups[gid]=[];
+    groups[gid].push(t);
+  });
+
+  for(const gid in groups){
+    const groupName = data.groups?.find(g=>g.id==gid)?.name || "Ungrouped";
+
+    const header = document.createElement('div');
+    header.className = "group-header";
+    header.textContent = groupName;
+
+    const list = document.createElement('div');
+    list.className = "group-list";
+
+    header.onclick = () => {
+      list.style.display = list.style.display==="block" ? "none":"block";
+    };
+
+    groups[gid].forEach(t=>{
+      const item = document.createElement('div');
+      item.className = "character-item";
+      item.dataset.id = t.id;
+
+      const avatar = document.createElement("img");
+      avatar.className = "character-avatar";
+      avatar.src = t.avatar_url || DEFAULT_AVATAR;
+
+      const textWrap = document.createElement("div");
+      textWrap.className = "character-text";
+
+      const name = document.createElement("div");
+      name.className = "character-name";
+      name.textContent = t.name;
+
+      const sub = document.createElement("div");
+      sub.className = "character-sub";
+      sub.textContent = t.brackets?.join("text") || " ";
+
+      textWrap.appendChild(name);
+      textWrap.appendChild(sub);
+
+      item.appendChild(avatar);
+      item.appendChild(textWrap);
+
+      item.onclick = () => selectCharacter(t.id);
+
+      list.appendChild(item);
+    });
+
+    sidebar.appendChild(header);
+    sidebar.appendChild(list);
+  }
+}
+
+function selectCharacter(id){
+  selectedId = id;
+  const t = data.tuppers.find(x=>x.id===id);
+  if(!t) return;
+
+  const content = document.getElementById('content');
+  content.innerHTML = "";
+
+  const isMobile = window.innerWidth <= 768;
+
+  if(isMobile){
+    document.getElementById('sidebar').classList.add("mobile-hidden");
+    content.classList.add("mobile-active");
+
+    const back = document.createElement('div');
+    back.className="back-btn";
+    back.textContent="← Back";
+    back.onclick=()=>{
+      content.classList.remove("mobile-active");
+      document.getElementById('sidebar').classList.remove("mobile-hidden");
+    };
+    content.appendChild(back);
+  }
+
+  const div = document.createElement('div');
+  div.className="character-info";
+  div.innerHTML = `
+    <h2>${t.name}</h2>
+    <img src="${t.avatar_url || DEFAULT_AVATAR}">
+    <p><strong>Nickname:</strong> ${t.nick || "None"}</p>
+    <p><strong>Posts:</strong> ${t.posts || 0}</p>
+    <p><strong>Brackets:</strong> ${t.brackets?.join("text")||" "}</p>
+    <p><strong>Created:</strong> ${new Date(t.created_at).toLocaleDateString()}</p>
+    <p><strong>Last Used:</strong> ${t.last_used ? new Date(t.last_used).toLocaleString() : "Never"}</p>
+    <p><strong>Description:</strong></p>
+    <p>${t.description || ""}</p>
+  `;
+  content.appendChild(div);
+
+  document.querySelectorAll(".character-item").forEach(el=>{
+    el.classList.remove("active");
+    if(el.dataset.id == id) el.classList.add("active");
+  });
+}
+</script>
+
+</body>
+</html>
