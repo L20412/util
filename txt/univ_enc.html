@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Universal Encoding Converter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0f172a;
+    color: #f1f5f9;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+}
+.container {
+    width: 100%;
+    max-width: 1000px;
+}
+h1 {
+    text-align: center;
+}
+textarea {
+    width: 100%;
+    height: 150px;
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    resize: vertical;
+}
+.controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+select, button {
+    padding: 8px;
+    border-radius: 8px;
+    border: none;
+}
+button {
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+}
+button:hover {
+    background: #1d4ed8;
+}
+.copy {
+    background: #16a34a;
+}
+.copy:hover {
+    background: #15803d;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Universal Encoding Converter</h1>
+
+<label>Input</label>
+<textarea id="input"></textarea>
+
+<div class="controls">
+    <select id="fromFormat"></select>
+    <span style="align-self:center;">→</span>
+    <select id="toFormat"></select>
+    <button onclick="convert()">Convert</button>
+    <button class="copy" onclick="copyOutput()">Copy</button>
+</div>
+
+<label>Output</label>
+<textarea id="output"></textarea>
+</div>
+
+<script>
+const formats = [
+    "text",
+    "hex",
+    "binary",
+    "decimal",
+    "base64",
+    "base32",
+    "url",
+    "unicode"
+];
+
+const fromSelect = document.getElementById("fromFormat");
+const toSelect = document.getElementById("toFormat");
+
+formats.forEach(f => {
+    fromSelect.innerHTML += `<option value="${f}">${f}</option>`;
+    toSelect.innerHTML += `<option value="${f}">${f}</option>`;
+});
+toSelect.value = "base64";
+
+function textToBytes(text) {
+    return new TextEncoder().encode(text);
+}
+
+function bytesToText(bytes) {
+    return new TextDecoder().decode(bytes);
+}
+
+function hexToBytes(hex) {
+    hex = hex.replace(/\s+/g, "");
+    let bytes = [];
+    for (let i = 0; i < hex.length; i += 2)
+        bytes.push(parseInt(hex.substr(i, 2), 16));
+    return new Uint8Array(bytes);
+}
+
+function bytesToHex(bytes) {
+    return [...bytes].map(b => b.toString(16).padStart(2,"0")).join(" ");
+}
+
+function binaryToBytes(bin) {
+    return new Uint8Array(
+        bin.trim().split(/\s+/).map(b => parseInt(b, 2))
+    );
+}
+
+function bytesToBinary(bytes) {
+    return [...bytes].map(b => b.toString(2).padStart(8,"0")).join(" ");
+}
+
+function decimalToBytes(dec) {
+    return new Uint8Array(
+        dec.trim().split(/\s+/).map(n => parseInt(n, 10))
+    );
+}
+
+function bytesToDecimal(bytes) {
+    return [...bytes].join(" ");
+}
+
+function base64ToBytes(b64) {
+    return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+}
+
+function bytesToBase64(bytes) {
+    return btoa(String.fromCharCode(...bytes));
+}
+
+// Simple RFC4648 Base32
+const base32Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+function bytesToBase32(bytes) {
+    let bits = 0, value = 0, output = "";
+    for (let byte of bytes) {
+        value = (value << 8) | byte;
+        bits += 8;
+        while (bits >= 5) {
+            output += base32Alphabet[(value >>> (bits - 5)) & 31];
+            bits -= 5;
+        }
+    }
+    if (bits > 0)
+        output += base32Alphabet[(value << (5 - bits)) & 31];
+    return output;
+}
+
+function base32ToBytes(input) {
+    let clean = input.replace(/=+$/, "").toUpperCase();
+    let bits = 0, value = 0, output = [];
+    for (let char of clean) {
+        value = (value << 5) | base32Alphabet.indexOf(char);
+        bits += 5;
+        if (bits >= 8) {
+            output.push((value >>> (bits - 8)) & 255);
+            bits -= 8;
+        }
+    }
+    return new Uint8Array(output);
+}
+
+function unicodeToBytes(str) {
+    return textToBytes(str.replace(/\\u([\dA-Fa-f]{4})/g,
+        (_, code) => String.fromCharCode(parseInt(code,16))));
+}
+
+function bytesToUnicode(bytes) {
+    return [...bytes]
+        .map(b => "\\u" + b.toString(16).padStart(4,"0"))
+        .join("");
+}
+
+function urlToBytes(url) {
+    return textToBytes(decodeURIComponent(url));
+}
+
+function bytesToUrl(bytes) {
+    return encodeURIComponent(bytesToText(bytes));
+}
+
+function decodeInput(format, value) {
+    switch(format) {
+        case "text": return textToBytes(value);
+        case "hex": return hexToBytes(value);
+        case "binary": return binaryToBytes(value);
+        case "decimal": return decimalToBytes(value);
+        case "base64": return base64ToBytes(value);
+        case "base32": return base32ToBytes(value);
+        case "unicode": return unicodeToBytes(value);
+        case "url": return urlToBytes(value);
+    }
+}
+
+function encodeOutput(format, bytes) {
+    switch(format) {
+        case "text": return bytesToText(bytes);
+        case "hex": return bytesToHex(bytes);
+        case "binary": return bytesToBinary(bytes);
+        case "decimal": return bytesToDecimal(bytes);
+        case "base64": return bytesToBase64(bytes);
+        case "base32": return bytesToBase32(bytes);
+        case "unicode": return bytesToUnicode(bytes);
+        case "url": return bytesToUrl(bytes);
+    }
+}
+
+function convert() {
+    try {
+        const input = document.getElementById("input").value.trim();
+        const from = fromSelect.value;
+        const to = toSelect.value;
+        const bytes = decodeInput(from, input);
+        const result = encodeOutput(to, bytes);
+        document.getElementById("output").value = result;
+    } catch (e) {
+        alert("Conversion error: " + e.message);
+    }
+}
+
+function copyOutput() {
+    const output = document.getElementById("output");
+    output.select();
+    document.execCommand("copy");
+}
+</script>
+</body>
+</html>
